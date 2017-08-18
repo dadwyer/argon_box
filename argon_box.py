@@ -168,9 +168,22 @@ class MySimulation:
         otree = TTree('argon','Argon Simulation')
         tb = TreeBuffer()
 
+        tb.maxInit = 100
         tb.maxTracks = 100000
         tb.maxNQ = 10000000
         tb.ev = array('i',[0])
+        # Geant4 initial state particle (Assumes single-particle simulation)
+        tb.pidi = array('i',[0])
+        tb.xi = array('d',[0])
+        tb.yi = array('d',[0])
+        tb.zi = array('d',[0])
+        tb.ti = array('d',[0])
+        tb.pxi = array('d',[0])
+        tb.pyi = array('d',[0])
+        tb.pzi = array('d',[0])
+        tb.ekini = array('d',[0])
+        tb.mi = array('d',[0])
+        # Geant4 track step data
         tb.nstep = array('i',[0])
         tb.tid = array('i',[0]*tb.maxTracks)
         tb.pid = array('i',[0]*tb.maxTracks)
@@ -183,6 +196,7 @@ class MySimulation:
         tb.ze = array('d',[0]*tb.maxTracks)
         tb.ekin = array('d',[0]*tb.maxTracks)
         tb.edep = array('d',[0]*tb.maxTracks)
+        # Geant4 energy deposition data
         tb.nq = array('i',[0])
         tb.tidq = array('i',[0]*tb.maxNQ)
         tb.pidq = array('i',[0]*tb.maxNQ)
@@ -193,6 +207,16 @@ class MySimulation:
         tb.zq = array('d',[0]*tb.maxNQ)
         
         otree.Branch('ev',tb.ev,'ev/I')
+        otree.Branch('pidi',tb.pidi,'pidi/I')
+        otree.Branch('xi',tb.xi,'xi/D')
+        otree.Branch('yi',tb.yi,'yi/D')
+        otree.Branch('zi',tb.zi,'zi/D')
+        otree.Branch('ti',tb.ti,'ti/D')
+        otree.Branch('pxi',tb.pxi,'pxi/D')
+        otree.Branch('pyi',tb.pyi,'pyi/D')
+        otree.Branch('pzi',tb.pzi,'pzi/D')
+        otree.Branch('ekini',tb.ekini,'ekini/D')
+        otree.Branch('mi',tb.mi,'mi/D')
         otree.Branch('nstep',tb.nstep,'nstep/I')
         otree.Branch('tid',tb.tid,'tid[nstep]/I')
         otree.Branch('pid',tb.pid,'pid[nstep]/I')
@@ -263,13 +287,15 @@ class MySimulation:
         '''Initialize particle generator'''
         if self._source.endswith('hepevt'):
             self._generator = MyHepEvtGeneratorAction(
-                hepEvtFilename=self._source)
+                hepEvtFilename=self._source,
+                treebuffer=self._treebuffer)
         else:
             self._source_pos = G4ThreeVector(0,0,0)
             self._generator = MyParticleGeneratorAction(
                 particleName=self._source,
                 energies=self._energies,
-                position=self._source_pos)
+                position=self._source_pos,
+                treebuffer=self._treebuffer)
         gRunManager.SetUserAction(self._generator)
         return
 
@@ -345,7 +371,7 @@ class MyDetectorConstruction(G4VUserDetectorConstruction):
 class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
     "Generator for single type of particles (e.g. e-, gammas, etc)"
 
-    def __init__(self, particleName='e-', energies=[1.0*GeV,],
+    def __init__(self, treebuffer, particleName='e-', energies=[1.0*GeV,],
                  position=G4ThreeVector(0,0,0)):
         G4VUserPrimaryGeneratorAction.__init__(self)
         self.isInitialized = False
@@ -353,6 +379,7 @@ class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
         self.energies = energies
         self.position = position
         self.particleDef = None
+        self._tb = treebuffer
         pass
 
     def initialize(self):
@@ -370,9 +397,25 @@ class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
         time = 0.
         vertex = G4PrimaryVertex(position, time)
         mass = self.particleDef.GetPDGMass()
+        # Record initial particle
+        tb = self._tb
+        tb.pidi[0] = self.particleDef.GetPDGEncoding()
+        tb.xi[0] = position.x / cm
+        tb.yi[0] = position.y / cm
+        tb.zi[0] = position.z / cm
+        tb.ti[0] = time / ns
+        tb.pxi[0] = 0
+        tb.pyi[0] = 0
+        tb.pzi[0] = 0 
+        tb.ekini[0] = 0
+        tb.mi[0] = mass / GeV
         for enr in self.energies:
             particle = G4PrimaryParticle(self.particleDef.GetPDGEncoding())
-            particle.Set4Momentum(sqrt(enr**2-mass**2),0,0,enr)
+            # Particle emission is in +z direction
+            particle.Set4Momentum(0,0,sqrt(enr**2-mass**2),enr)
+            # Add to total initial momentum and kinetic energy
+            tb.pzi[0] += sqrt((self.energies[0])**2-mass**2) / GeV
+            tb.ekini[0] += (enr - mass) / GeV
             # Ensure mass is exact
             particle.SetMass(mass)
             # Set direction
@@ -392,13 +435,16 @@ class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
 # Particle interaction generator
 class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
     "Generator based on HepEVT input data"
-
-    def __init__(self, hepEvtFilename):
+    # Note: This generator is a quick hack.  Should eventually be
+    # rewritten in a better fashion.
+    
+    def __init__(self, hepEvtFilename, treebuffer):
         G4VUserPrimaryGeneratorAction.__init__(self)
         self.isInitialized = False
         self.inputFile = hepEvtFilename
         self.hepEvts = None
         self.currentEventIdx = 0
+        self._tb = treebuffer
         pass
 
     def initialize(self):
@@ -468,7 +514,6 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
         return hepEvts
         
     def GeneratePrimaries(self, event):
-        #self.particleGun.GeneratePrimaryVertex(event)
         if not self.isInitialized:
             self.initialize()
         if self.currentEventIdx > len(self.hepEvts):
@@ -477,35 +522,43 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
             return event
         currentEvt = self.hepEvts[self.currentEventIdx]
         # Set default position and time to zero 
-        position = G4ThreeVector(0,0,0)
         time = 0
         finalStateParticles = []
         #print " Curevent: ",self.currentEventIdx
         for heppart in currentEvt['particles']:
             status = heppart['status']
+            if status not in [0,1]:
+                # ignore all but initial, final state particles
+                #  FIXME: should probably throw a warning
+                continue
+            heppos = heppart['position']
+            hepmom = heppart['momentum']
             if status == 0:
-                # initial state particle.  get position and time
-                heppos = heppart['position']
-                position = G4ThreeVector(heppos[0],heppos[1],heppos[2])
-                time = heppart['time']
+                # Initial state particle.  Add info to event tree
+                tb = self._tb
+                tb.pidi[0] = heppart['pdgid']
+                tb.xi[0] = heppos[0] / cm
+                tb.yi[0] = heppos[1] / cm
+                tb.zi[0] = heppos[2] / cm
+                tb.ti[0] = heppart['time'] / ns
+                tb.pxi[0] = hepmom[0] / GeV
+                tb.pyi[0] = hepmom[1] / GeV
+                tb.pzi[0] = hepmom[2] / GeV
+                tb.ekini[0] = (heppart['energy'] - heppart['mass']) / GeV
+                tb.mi[0] = heppart['mass'] / GeV
             elif status == 1:
-                # final state particle.  add to event
-                hepmom = heppart['momentum']
+                # Final state particle.  Add to event
+                position = G4ThreeVector(heppos[0],heppos[1],heppos[2])
                 particle = G4PrimaryParticle(heppart['pdgid'])
-                #particle.SetTrackID(heppart['index'])
                 particle.Set4Momentum(hepmom[0],hepmom[1],hepmom[2],
                                       heppart['energy'])
                 # Ensure mass is exact
                 particle.SetMass(heppart['mass'])
-                finalStateParticles.append(particle)
-                #print "      adding: ",heppart['pdgid']
-            else:
-                # ignore others
-                continue
-        vertex = G4PrimaryVertex(position, time)
-        for particle in finalStateParticles:
+                finalStateParticles.append([particle, position, time])
+        for [particle, position, time] in finalStateParticles:
+            vertex = G4PrimaryVertex(position, time)
             vertex.SetPrimary(particle)
-        event.AddPrimaryVertex(vertex)
+            event.AddPrimaryVertex(vertex)
         self.currentEventIdx += 1
 
 # ------------------------------------------------------------------
@@ -528,6 +581,16 @@ class MyEventAction(G4UserEventAction):
     
     def BeginOfEventAction(self, event):
         self._tb.ev[0] = -1
+        self._tb.pidi[0] = 0
+        self._tb.xi[0] = 0
+        self._tb.yi[0] = 0
+        self._tb.zi[0] = 0
+        self._tb.ti[0] = 0
+        self._tb.pxi[0] = 0
+        self._tb.pyi[0] = 0
+        self._tb.pzi[0] = 0
+        self._tb.ekini[0] = 0
+        self._tb.mi[0] = 0
         self._tb.edep[0] = 0
         self._tb.nstep[0] = 0
         self._tb.nq[0] = 0
