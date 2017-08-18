@@ -16,5 +16,4 @@ HepEVT data:
 
 ## Other useful options:
 >  --seed=<N>: Change random seed
->  --disable_edepsim: Disable primitive simulation of energy depositions
-
+>  --enable_edepsim: Enable primitive simulation of 3-D energy depositions
