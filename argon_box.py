@@ -348,7 +348,6 @@ class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
     def __init__(self, particleName='e-', energies=[1.0*GeV,],
                  position=G4ThreeVector(0,0,0)):
         G4VUserPrimaryGeneratorAction.__init__(self)
-        #self.particleGun= G4ParticleGun(1)
         self.isInitialized = False
         self.particleName = particleName
         self.energies = energies
