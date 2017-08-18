@@ -15,5 +15,5 @@ HepEVT data:
 >  $ python argon_box.py --nevents=100 --source='input.hepevt' --output='hepevt_sim.root'
 
 ## Other useful options:
->  --seed=<N>: Change random seed
+>  --seed=<N>: Change random seed  
 >  --enable_edepsim: Enable primitive simulation of 3-D energy depositions
