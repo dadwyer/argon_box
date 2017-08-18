@@ -15,5 +15,7 @@ HepEVT data:
 >  $ python argon_box.py --nevents=100 --source='input.hepevt' --output='hepevt_sim.root'
 
 ## Other useful options:
->  --seed=<N>: Change random seed  
->  --enable_edepsim: Enable primitive simulation of 3-D energy depositions
+>  --seed=N: Change random seed  
+>  --physlist='QGSP_BERT': Set G4 Physics list (FTFP_BERT, QGSP_BERT, QGSP_BERT_HP)     
+>  --enable_edepsim: Enable primitive simulation of 3-D energy depositions  
+>  --edep_step: Energy deposition step size, in mm  
