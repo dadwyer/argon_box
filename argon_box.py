@@ -406,7 +406,7 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
         while idx < len(data):
             line = data[idx]
             line = line.strip()
-            print 'line:',line
+            #print 'line:',line
             if line.startswith('___'):
                 # Ignore extra formatting lines
                 idx += 1
@@ -451,7 +451,7 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
                     currentEvent['particles'].append(particle)
                 hepEvts.append( copy(currentEvent) )
                 idx += (5 + (n_particles+1)*3 + 1)
-                print ' HepEVT Loaded:', len(hepEvts)
+                #print ' HepEVT Loaded:', len(hepEvts)
                 #if len(hepEvts) > 20: break
         return hepEvts
         
@@ -468,7 +468,7 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
         position = G4ThreeVector(0,0,0)
         time = 0
         finalStateParticles = []
-        print " Curevent: ",self.currentEventIdx
+        #print " Curevent: ",self.currentEventIdx
         for heppart in currentEvt['particles']:
             status = heppart['status']
             if status == 0:
@@ -486,7 +486,7 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
                 # Ensure mass is exact
                 particle.SetMass(heppart['mass'])
                 finalStateParticles.append(particle)
-                print "      adding: ",heppart['pdgid']
+                #print "      adding: ",heppart['pdgid']
             else:
                 # ignore others
                 continue
@@ -537,7 +537,7 @@ class MySteppingAction(G4UserSteppingAction):
         self._geom = geometry
         self._materials = materials
         self._include_edepsim = edepsim
-        self._edep_step = edep_step
+        self._edep_step = edepstep
     
     def UserSteppingAction(self, step):
         '''Collect data for current simulation step'''
