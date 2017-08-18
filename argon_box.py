@@ -4,7 +4,8 @@
 #
 #  For use in quick studies of particle interactions and energy
 #  deposition in liquid argon.  Uses standard G4 physics lists, and
-#  includes a primitive option to
+#  includes a primitive option to generate a 3D map of the ionization
+#  energy deposition from the particles.
 #
 #  Includes two particle generator options:
 #   - Monoenergetic particles of a specific type (e.g. e-, n, p, mu+)
