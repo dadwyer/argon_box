@@ -62,7 +62,8 @@ class MySimulation:
         self._energies = None
         self._source_position = None
         self._generator = None
-        self._include_edepsim = True
+        self._include_edepsim = False
+        self._edep_step = 2.0 * mm
         return
 
     def initialize(self):
@@ -107,12 +108,15 @@ class MySimulation:
         parser.add_argument('--source', help='Particle name or generator',
                             default='e-')
         parser.add_argument('--energy', type=float, help='Particle energy',
-                            default=2.0)
+                            default=2.0 * GeV)
         parser.add_argument('--output', help='Output filename')
         parser.add_argument('--seed', type=int, help='Random seed')
-        parser.add_argument('--disable_edepsim',
-                            help='Disable energy deposition in simulation',
+        parser.add_argument('--enable_edepsim',
+                            help='Enable energy deposition in simulation',
                             action='store_true')
+        parser.add_argument('--edep_step', type=float,
+                            help='Maximum step size in energy dep simulation',
+                            default=2.0 * mm)
         self._args = parser.parse_args()
         if self._args.nevents is not None:
             self._nevents = self._args.nevents
@@ -124,8 +128,10 @@ class MySimulation:
             self._ofilename = self._args.output
         if self._args.seed is not None:
             self._random_seed = self._args.seed
-        if self._args.disable_edepsim:
-            self._include_edepsim = False
+        if self._args.enable_edepsim:
+            self._include_edepsim = True
+        if self._args.edep_step:
+            self._edep_step = self._args.edep_step
         print "Configuration:"
         print "  nevents:",self._nevents
         print "   source:",self._source
@@ -133,6 +139,7 @@ class MySimulation:
         print "   output:",self._ofilename
         print "     seed:",self._random_seed
         print "  edepsim:",self._include_edepsim
+        print " edepstep:",self._edep_step
         return
 
     def _prepare_output(self):
@@ -249,7 +256,8 @@ class MySimulation:
         self._step_action = MySteppingAction(treebuffer=self._treebuffer,
                                              geometry=self._geom,
                                              materials=self._materials,
-                                             edepsim=self._include_edepsim)
+                                             edepsim=self._include_edepsim,
+                                             edepstep=self._edep_step)
         gRunManager.SetUserAction(self._run_action)
         gRunManager.SetUserAction(self._event_action)
         gRunManager.SetUserAction(self._step_action)
@@ -511,13 +519,14 @@ class MyEventAction(G4UserEventAction):
 # ------------------------------------------------------------------
 class MySteppingAction(G4UserSteppingAction):
     "My Stepping Action"
-    def __init__(self, treebuffer, geometry, materials, edepsim):
+    def __init__(self, treebuffer, geometry, materials, edepsim, edepstep):
         '''Constructor'''
         G4UserSteppingAction.__init__(self)
         self._tb = treebuffer
         self._geom = geometry
         self._materials = materials
         self._include_edepsim = edepsim
+        self._edep_step = edep_step
     
     def UserSteppingAction(self, step):
         '''Collect data for current simulation step'''
@@ -548,17 +557,15 @@ class MySteppingAction(G4UserSteppingAction):
         if not self._include_edepsim:
             # Stop here, unless simple energy deposition simulation is enabled
             return
-        # Distribute ionization charge along track
-        deltaHit = 2 * mm
         # Arrrgghhh! no python hook to non-ionizing energy deposit...
         #eIon = step.GetTotalEnergyDeposit()-step.GetNonIonizingEnergyDeposit()
         eIon = step.GetTotalEnergyDeposit()
         if track.GetDefinition().GetPDGCharge() != 0.0 and eIon > 0:
             deltaPos = postpos - prepos
             iq = tb.nq[0]
-            dnq = int(deltaPos.mag() / deltaHit)           
+            dnq = int(deltaPos.mag() / self._edep_step)           
             drq = G4ThreeVector(deltaPos)
-            drq.setMag(deltaHit)
+            drq.setMag(self._edep_step)
             for qidx in range(dnq):
                 curpos = prepos + qidx * drq
                 tb.tidq[iq+qidx] = track.GetTrackID()
