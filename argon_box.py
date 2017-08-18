@@ -406,7 +406,7 @@ class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
         tb.ti[0] = time / ns
         tb.pxi[0] = 0
         tb.pyi[0] = 0
-        tb.pzi[0] = 0 
+        tb.pzi[0] = 0
         tb.ekini[0] = 0
         tb.mi[0] = mass / GeV
         for enr in self.energies:
