@@ -382,7 +382,6 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
 
     def __init__(self, hepEvtFilename):
         G4VUserPrimaryGeneratorAction.__init__(self)
-        #self.particleGun= G4ParticleGun(1)
         self.isInitialized = False
         self.inputFile = hepEvtFilename
         self.hepEvts = None
