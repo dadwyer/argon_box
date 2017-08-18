@@ -1,8 +1,21 @@
 #!/usr/bin/env python
 #
-# Geant4-based simulation of interactions in box of argon
+# Geant4-based simulation of particle interactions in a box of liquid argon
 #
-
+#  For use in quick studies of particle interactions and energy
+#  deposition in liquid argon.  Uses standard G4 physics lists, and
+#  includes a primitive option to
+#
+#  Includes two particle generator options:
+#   - Monoenergetic particles of a specific type (e.g. e-, n, p, mu+)
+#   - HepEVT-formatted input data
+#
+#  Output is a plain ROOT tree containing information on each Geant4
+#  track step.  If the primitive energy deposition simulation is
+#  enabled, then a list of energy depositions and their coordinates
+#  are also included.
+# 
+# dadwyer@lbl.gov, Aug. 18, 2017
 
 # Import necessary Geant4 classes
 # Generators
