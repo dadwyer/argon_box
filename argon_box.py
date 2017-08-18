@@ -57,6 +57,7 @@ class MySimulation:
         self._treebuffer = None
         self._materials = {}
         self._geom = None
+        self._physlist_name = 'QGSP_BERT'
         self._physics_list = None
         self._source = None
         self._energies = None
@@ -117,6 +118,10 @@ class MySimulation:
         parser.add_argument('--edep_step', type=float,
                             help='Maximum step size in energy dep simulation',
                             default=2.0 * mm)
+        parser.add_argument('--physlist',
+                            help='G4 Physics List: FTFP_BERT, QGSP_BERT, QGSP_BERT_HP',
+                            default='QGSP_BERT')
+
         self._args = parser.parse_args()
         if self._args.nevents is not None:
             self._nevents = self._args.nevents
@@ -137,6 +142,7 @@ class MySimulation:
         print "   source:",self._source
         print "   energies:",self._energies
         print "   output:",self._ofilename
+        print " physlist:",self._physlist_name
         print "     seed:",self._random_seed
         print "  edepsim:",self._include_edepsim
         print " edepstep:",self._edep_step
@@ -227,9 +233,14 @@ class MySimulation:
     def _init_physics_list(self):
         '''Initialize the physics list'''
         # Use standard physics list
-        self._physics_list = QGSP_BERT()
-        #self._physics_list = QGSP_BERT_HP()
-        #self._physics_list = FTFP_BERT()
+        if self._physlist_name == 'FTFP_BERT':
+            self._physics_list = FTFP_BERT()
+        elif self._physlist_name == 'QGSP_BERT':
+            self._physics_list = QGSP_BERT()
+        elif self._physlist_name == 'QGSP_BERT_HP':
+            self._physics_list = QGSP_BERT_HP()
+        else:
+            raise ValueError("Invalid physics list: \'%r\'.  Please choose from:FTFP_BERT, QGSP_BERT, QGSP_BERT_HP" % self._physlist_name)
         #self._physics_list.RegisterPhysics(G4MyStepLimiterPhysics())
         gRunManager.SetUserInitialization(self._physics_list)
         return
