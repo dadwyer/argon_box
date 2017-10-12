@@ -29,7 +29,7 @@ from Geant4 import FTFP_BERT, QGSP_BERT, QGSP_BERT_HP
 # Run Manager and UI commands
 from Geant4 import gRunManager, gApplyUICommand, G4UImanager
 # Physical Units
-from Geant4 import MeV, cm, mm, g, mole, cm3, deg, GeV, m, c_light
+from Geant4 import MeV, cm, mm, g, mole, cm3, deg, GeV, m, c_light, ns
 # Materials
 from Geant4 import G4Material, G4NistManager, G4Element, G4Material
 # Geometry
