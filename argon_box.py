@@ -172,17 +172,30 @@ class MySimulation:
         tb.maxTracks = 100000
         tb.maxNQ = 10000000
         tb.ev = array('i',[0])
-        # Geant4 initial state particle (Assumes single-particle simulation)
-        tb.pidi = array('i',[0])
-        tb.xi = array('d',[0])
-        tb.yi = array('d',[0])
-        tb.zi = array('d',[0])
-        tb.ti = array('d',[0])
-        tb.pxi = array('d',[0])
-        tb.pyi = array('d',[0])
-        tb.pzi = array('d',[0])
-        tb.ekini = array('d',[0])
-        tb.mi = array('d',[0])
+        # Ancestor particles (e.g. neutrino)
+        #   Note: For simplicity, assume only one potential ancestor
+        tb.pida = array('i',[0])
+        tb.xa = array('d',[0])
+        tb.ya = array('d',[0])
+        tb.za = array('d',[0])
+        tb.ta = array('d',[0])
+        tb.pxa = array('d',[0])
+        tb.pya = array('d',[0])
+        tb.pza = array('d',[0])
+        tb.ekina = array('d',[0])
+        tb.ma = array('d',[0])        
+        # Geant4 initial state particles
+        tb.ni = array('i',[0])
+        tb.pidi = array('i',[0]*tb.maxInit)
+        tb.xi = array('d',[0]*tb.maxInit)
+        tb.yi = array('d',[0]*tb.maxInit)
+        tb.zi = array('d',[0]*tb.maxInit)
+        tb.ti = array('d',[0]*tb.maxInit)
+        tb.pxi = array('d',[0]*tb.maxInit)
+        tb.pyi = array('d',[0]*tb.maxInit)
+        tb.pzi = array('d',[0]*tb.maxInit)
+        tb.ekini = array('d',[0]*tb.maxInit)
+        tb.mi = array('d',[0]*tb.maxInit)
         # Geant4 track step data
         tb.nstep = array('i',[0])
         tb.tid = array('i',[0]*tb.maxTracks)
@@ -205,18 +218,31 @@ class MySimulation:
         tb.xq = array('d',[0]*tb.maxNQ)
         tb.yq = array('d',[0]*tb.maxNQ)
         tb.zq = array('d',[0]*tb.maxNQ)
+        # Hook for ancestor particle
+        tb.ancestor = None
         
         otree.Branch('ev',tb.ev,'ev/I')
-        otree.Branch('pidi',tb.pidi,'pidi/I')
-        otree.Branch('xi',tb.xi,'xi/D')
-        otree.Branch('yi',tb.yi,'yi/D')
-        otree.Branch('zi',tb.zi,'zi/D')
-        otree.Branch('ti',tb.ti,'ti/D')
-        otree.Branch('pxi',tb.pxi,'pxi/D')
-        otree.Branch('pyi',tb.pyi,'pyi/D')
-        otree.Branch('pzi',tb.pzi,'pzi/D')
-        otree.Branch('ekini',tb.ekini,'ekini/D')
-        otree.Branch('mi',tb.mi,'mi/D')
+        otree.Branch('pida',tb.pida,'pida/I')
+        otree.Branch('xa',tb.xa,'xa/D')
+        otree.Branch('ya',tb.ya,'ya/D')
+        otree.Branch('za',tb.za,'za/D')
+        otree.Branch('ta',tb.ta,'ta/D')
+        otree.Branch('pxa',tb.pxa,'pxa/D')
+        otree.Branch('pya',tb.pya,'pya/D')
+        otree.Branch('pza',tb.pza,'pza/D')
+        otree.Branch('ekina',tb.ekina,'ekina/D')
+        otree.Branch('ma',tb.ma,'ma/D')
+        otree.Branch('ni',tb.ni,'ni/I')
+        otree.Branch('pidi',tb.pidi,'pidi[ni]/I')
+        otree.Branch('xi',tb.xi,'xi[ni]/D')
+        otree.Branch('yi',tb.yi,'yi[ni]/D')
+        otree.Branch('zi',tb.zi,'zi[ni]/D')
+        otree.Branch('ti',tb.ti,'ti[ni]/D')
+        otree.Branch('pxi',tb.pxi,'pxi[ni]/D')
+        otree.Branch('pyi',tb.pyi,'pyi[ni]/D')
+        otree.Branch('pzi',tb.pzi,'pzi[ni]/D')
+        otree.Branch('ekini',tb.ekini,'ekini[ni]/D')
+        otree.Branch('mi',tb.mi,'mi[ni]/D')
         otree.Branch('nstep',tb.nstep,'nstep/I')
         otree.Branch('tid',tb.tid,'tid[nstep]/I')
         otree.Branch('pid',tb.pid,'pid[nstep]/I')
@@ -393,6 +419,9 @@ class MyParticleGeneratorAction(G4VUserPrimaryGeneratorAction):
         #self.particleGun.GeneratePrimaryVertex(event)
         if not self.isInitialized:
             self.initialize()
+        # No ancestor for this generator
+        self._tb.ancestor = None
+        # Create primaries
         position = self.GenerateVertexPosition()
         time = 0.
         vertex = G4PrimaryVertex(position, time)
@@ -521,10 +550,10 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
                    % self.currentEventIdx)
             return event
         currentEvt = self.hepEvts[self.currentEventIdx]
+        self._tb.ancestor = None
         # Set default position and time to zero 
         time = 0
         finalStateParticles = []
-        #print " Curevent: ",self.currentEventIdx
         for heppart in currentEvt['particles']:
             status = heppart['status']
             if status not in [0,1]:
@@ -535,17 +564,7 @@ class MyHepEvtGeneratorAction(G4VUserPrimaryGeneratorAction):
             hepmom = heppart['momentum']
             if status == 0:
                 # Initial state particle.  Add info to event tree
-                tb = self._tb
-                tb.pidi[0] = heppart['pdgid']
-                tb.xi[0] = heppos[0] / cm
-                tb.yi[0] = heppos[1] / cm
-                tb.zi[0] = heppos[2] / cm
-                tb.ti[0] = heppart['time'] / ns
-                tb.pxi[0] = hepmom[0] / GeV
-                tb.pyi[0] = hepmom[1] / GeV
-                tb.pzi[0] = hepmom[2] / GeV
-                tb.ekini[0] = (heppart['energy'] - heppart['mass']) / GeV
-                tb.mi[0] = heppart['mass'] / GeV
+                self._tb.ancestor = heppart
             elif status == 1:
                 # Final state particle.  Add to event
                 position = G4ThreeVector(heppos[0],heppos[1],heppos[2])
@@ -581,24 +600,68 @@ class MyEventAction(G4UserEventAction):
     
     def BeginOfEventAction(self, event):
         self._tb.ev[0] = -1
-        self._tb.pidi[0] = 0
-        self._tb.xi[0] = 0
-        self._tb.yi[0] = 0
-        self._tb.zi[0] = 0
-        self._tb.ti[0] = 0
-        self._tb.pxi[0] = 0
-        self._tb.pyi[0] = 0
-        self._tb.pzi[0] = 0
-        self._tb.ekini[0] = 0
-        self._tb.mi[0] = 0
+        self._tb.pida[0] = 0
+        self._tb.xa[0] = 0
+        self._tb.ya[0] = 0
+        self._tb.za[0] = 0
+        self._tb.ta[0] = 0
+        self._tb.pxa[0] = 0
+        self._tb.pya[0] = 0
+        self._tb.pza[0] = 0
+        self._tb.ekina[0] = 0
+        self._tb.ma[0] = 0
         self._tb.edep[0] = 0
+        self._tb.ni[0] = 0
         self._tb.nstep[0] = 0
         self._tb.nq[0] = 0
         return
     
     def EndOfEventAction(self, event):
         '''Record event'''
-        self._tb.ev[0] = event.GetEventID()
+        tb = self._tb
+        # Event ID
+        tb.ev[0] = event.GetEventID()
+        # Ancestor particle (e.g. neutrino)
+        if tb.ancestor != None:
+            # Log info
+            heppart = tb.ancestor
+            tb.pida[0] = heppart['pdgid']
+            heppos = heppart['position']
+            hepmom = heppart['momentum']
+            tb.xa[0] = heppos[0] / cm
+            tb.ya[0] = heppos[1] / cm
+            tb.za[0] = heppos[2] / cm
+            tb.ta[0] = heppart['time'] / ns
+            tb.pxa[0] = hepmom[0] / GeV
+            tb.pya[0] = hepmom[1] / GeV
+            tb.pza[0] = hepmom[2] / GeV
+            tb.ekina[0] = (heppart['energy'] - heppart['mass']) / GeV
+            tb.ma[0] = heppart['mass'] / GeV
+        # Primary particles
+        ni = 0
+        for pv_idx in range(event.GetNumberOfPrimaryVertex()):
+            pvtx = event.GetPrimaryVertex(pv_idx)
+            for pp_idx in range(pvtx.GetNumberOfParticle()):
+                ppart = pvtx.GetPrimary(pp_idx)
+                tb.pidi[ni] = ppart.GetPDGcode()
+                tb.xi[ni] = pvtx.GetX0() / cm
+                tb.yi[ni] = pvtx.GetY0() / cm
+                tb.zi[ni] = pvtx.GetZ0() / cm
+                tb.ti[ni] = pvtx.GetT0() / ns
+                tb.pxi[ni] = ppart.GetPx() / GeV
+                tb.pyi[ni] = ppart.GetPy() / GeV
+                tb.pzi[ni] = ppart.GetPz() / GeV
+                # Ick, G4py interface doesn't provide particle energy func :/
+                pmomSq = ppart.GetPx()**2 + ppart.GetPy()**2 + ppart.GetPz()**2
+                pmass = ppart.GetMass()
+                penergy = sqrt(pmomSq + pmass**2)
+                tb.ekini[ni] = (penergy - pmass) / GeV
+                tb.mi[ni] = pmass / GeV
+                ni += 1
+                if ni == tb.maxInit:
+                    print "Warning: Reached max number of initial particles."
+                    break
+        tb.ni[0] = ni
         self._otree.Fill()
         return
 
